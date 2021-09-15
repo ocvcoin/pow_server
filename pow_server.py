@@ -197,7 +197,7 @@ if __name__ == "__main__":
     print("INITIAL TESTS SUCCESSFULLY COMPLETED\n")
     
     print("POW SERVER RUNNING\n")
-    
+    print("NEVER CLOSE THIS PROGRAM WHILE OCVCOIN IS RUNNING! OTHERWISE, OCVCOIN WILL NOT WORK PROPERLY!\n")
     
     
     
