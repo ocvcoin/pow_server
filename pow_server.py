@@ -50,7 +50,7 @@ def hash_block(block_data):
 
     img_src = cv2.imdecode(nparr, cv2.IMREAD_COLOR)
 
-    algo_selector = (block_data[5] % 6) #from hashPrevBlock FirstByte
+    algo_selector = (block_data[5] % 6) #from hashPrevBlock second byte
     #print(algo_selector)
     if algo_selector == 0:
         img_src = cv2.bilateralFilter(img_src, 15, 75, 75)
