@@ -4,6 +4,74 @@ import hashlib
 import socketserver
 import struct
 
+
+def new_hash_block(block_data):
+
+
+    #24*24 24bit bmp
+    init_image_bytes = bytearray(b'\x42\x4D\xF6\x06\x00\x00\x00\x00\x00\x00\x36\x00\x00\x00\x28\x00\x00\x00\x18\x00\x00\x00\x18\x00\x00\x00\x01\x00\x18\x00\x00\x00\x00\x00\xC0\x06\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00')
+
+
+    start_hash = block_data[0:76]
+
+    i = 0
+    while i < 27:
+        start_hash = hashlib.sha512(start_hash).digest()
+        init_image_bytes = init_image_bytes + start_hash
+        i += 1
+        
+   
+
+
+    nonce_bytes = block_data[76:80]
+
+
+
+
+    i = 54 #first 54byte bmp header
+    j = 0
+    while i < 1782:        
+        init_image_bytes[i] = init_image_bytes[i] ^ nonce_bytes[j]
+        j += 1
+        i += 1        
+        if j == 4:
+            j = 0
+
+
+    nparr = np.asarray(init_image_bytes, dtype="uint8")
+    img_src = cv2.imdecode(nparr, cv2.IMREAD_COLOR)
+
+
+
+    img_src = cv2.bilateralFilter(img_src, 15, 75, 75)
+
+    kernel = np.array(
+                  [
+                    [0.0, -1.0, 0.0], 
+                    [-1.0, 5.0, -1.0],
+                    [0.0, -1.0, 0.0]
+                  ]
+                  )
+
+    kernel = kernel/(np.sum(kernel) if np.sum(kernel)!=0 else 1)
+    
+    img_src = cv2.filter2D(img_src,-1,kernel)
+
+    img_src = cv2.blur(img_src, (5, 5))
+
+    img_src = cv2.GaussianBlur(img_src, (5, 5),cv2.BORDER_DEFAULT)
+
+    img_src = cv2.medianBlur(img_src, 5)
+
+
+
+    is_success, im_buf_arr = cv2.imencode(".bmp", img_src)
+    byte_im = im_buf_arr.tobytes()
+
+
+    return hashlib.sha256(byte_im+block_data).digest()
+
+
 def hash_block(block_data):
 
 
@@ -125,7 +193,7 @@ class MyTCPHandler(socketserver.BaseRequestHandler):
             
         block_data_len = struct.unpack("!I", size_t)[0]
         
-        if block_data_len < 32 or block_data_len > 20971520:
+        if block_data_len != 80:
             return
         #print (block_data_len)
 
@@ -144,8 +212,19 @@ class MyTCPHandler(socketserver.BaseRequestHandler):
 
         if len(block_data) != block_data_len:
             return
+        """
+            WE ARE REPLACING THE UNSTABLE OLD FUNCTION!!!
+            block timestamp >= 1636416000
+            Unix Timestamp 	1636416000
+            GMT 	Tue Nov 09 2021 00:00:00 GMT+0000
+        """        
+        new_algo_time = int.from_bytes(block_data[68:72], "little", signed=False)    
+        if new_algo_time >= 1636416000:
+            ret_data_hash = new_hash_block(block_data)[::-1]
+        else:
+            ret_data_hash = hash_block(block_data)
         #print (block_data.hex() )
-        ret_data_hash = hash_block(block_data)
+        
         #ret_data_hash = ret_data_hash[::-1]
         self.request.sendall(ret_data_hash+bytearray(b'\xe1\xd4\x67\xc0'))
 
